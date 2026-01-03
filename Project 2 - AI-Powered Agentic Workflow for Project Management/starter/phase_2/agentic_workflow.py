@@ -146,39 +146,6 @@ development_engineer_evaluation_agent = EvaluationAgent(
 
 # Routing Agent
 # TODO: 10 - Instantiate a routing_agent. You will need to define a list of agent dictionaries (routes) for Product Manager, Program Manager, and Development Engineer. Each dictionary should contain 'name', 'description', and 'func' (linking to a support function). Assign this list to the routing_agent's 'agents' attribute.
-routing_agent = RoutingAgent(
-    openai_api_key=openai_api_key,
-    agents=[]
-)
-
-routes = [
-    {
-        "name": "Product Manager",
-        "description": (
-            "Responsible for defining product personas and user stories only. "
-            "Does not define features. Does not define engineering tasks."
-        ),
-        "func": lambda x: product_manager_support_function(x),
-    },
-    {
-        "name": "Program Manager",
-        "description": (
-            "Responsible for defining product features by grouping related user stories. "
-            "Does not write user stories. Does not define engineering tasks."
-        ),
-        "func": lambda x: program_manager_support_function(x),
-    },
-    {
-        "name": "Development Engineer",
-        "description": (
-            "Responsible for defining engineering development tasks needed to implement user stories. "
-            "Does not write user stories. Does not group stories into features."
-        ),
-        "func": lambda x: development_engineer_support_function(x),
-    },
-]
-
-routing_agent.agents = routes
 
 # Job function persona support functions
 # TODO: 11 - Define the support functions for the routes of the routing agent (e.g., product_manager_support_function, program_manager_support_function, development_engineer_support_function).
@@ -188,23 +155,80 @@ routing_agent.agents = routes
 #   3. Have the response evaluated by the corresponding Evaluation Agent.
 #   4. Return the final validated response.
 def product_manager_support_function(query: str) -> str:
-    result = product_manager_evaluation_agent.evaluate(query)
-    return result["final_response"]
+    response = product_manager_knowledge_agent.respond(query)
+    evaluation = product_manager_evaluation_agent.evaluate(response)
+    return evaluation["final_response"]
 
 def program_manager_support_function(query: str) -> str:
-    result = program_manager_evaluation_agent.evaluate(query)
-    return result["final_response"]
+    response = program_manager_knowledge_agent.respond(query)
+    evaluation = program_manager_evaluation_agent.evaluate(response)
+    return evaluation["final_response"]
 
 def development_engineer_support_function(query: str) -> str:
-    result = development_engineer_evaluation_agent.evaluate(query)
-    return result["final_response"]
+    response = development_engineer_knowledge_agent.respond(query)
+    evaluation = development_engineer_evaluation_agent.evaluate(response)
+    return evaluation["final_response"]
+
+# Routing Agent
+routes = [
+    {
+        "name": "Product Manager",
+        "description": (
+            "Responsible for defining product personas and user stories only. "
+            "Does not define features or tasks. Does not group stories."
+        ),
+        "func": lambda x: product_manager_support_function(x),
+    },
+    {
+        "name": "Program Manager",
+        "description": (
+            "Responsible for defining product features by grouping user stories. "
+            "Does not define user stories or tasks."
+        ),
+        "func": lambda x: program_manager_support_function(x),
+    },
+    {
+        "name": "Development Engineer",
+        "description": (
+            "Responsible for defining development tasks for each user story. "
+            "Does not define user stories or features."
+        ),
+        "func": lambda x: development_engineer_support_function(x),
+    },
+]
+
+routing_agent = RoutingAgent(openai_api_key=openai_api_key, agents=routes)
 
 # Run the workflow
 
 print("\n*** Workflow execution started ***\n")
 # Workflow Prompt
 # ****
-workflow_prompt = "What would the development tasks for this product be?"
+workflow_prompt = """Generate a full project plan for the Email Router product.
+
+The output MUST include ALL of the following sections in order:
+
+1. USER STORIES
+Each story must follow this exact format:
+As a [type of user], I want [an action or feature] so that [benefit/value].
+
+2. PRODUCT FEATURES
+Each feature must follow this exact structure:
+Feature Name:
+Description:
+Key Functionality:
+User Benefit:
+
+3. ENGINEERING TASKS
+Each task must follow this exact structure:
+Task ID:
+Task Title:
+Related User Story:
+Description:
+Acceptance Criteria:
+Estimated Effort:
+Dependencies:"""
+
 # ****
 print(f"Task to complete in this workflow, workflow prompt = {workflow_prompt}")
 
@@ -217,8 +241,11 @@ print("\nDefining workflow steps from the workflow prompt")
 #      b. Append the result to 'completed_steps'.
 #      c. Print information about the step being executed and its result.
 #   4. After the loop, print the final output of the workflow (the last completed step).
+
 workflow_steps = action_planning_agent.extract_steps_from_prompt(workflow_prompt)
 completed_steps = []
+
+current_input = workflow_prompt
 
 for idx, step in enumerate(workflow_steps, start=1):
     step = step.strip()
@@ -228,14 +255,45 @@ for idx, step in enumerate(workflow_steps, start=1):
     print(f"\n--- Executing workflow step {idx} ---")
     print(f"Step: {step}")
 
-    result = routing_agent.route(step)
+    # Route step with accumulated context
+    routed_input = f"""
+Context so far:
+{current_input}
+
+Current task:
+{step}
+"""
+
+    result = routing_agent.route(routed_input)
     completed_steps.append(result)
 
     print("\nStep Result:")
     print(result)
 
+    # Chain context forward
+    current_input = result
+
+# Final structured output
 if completed_steps:
-    print("\n*** Final workflow output (last completed step) ***\n")
-    print(completed_steps[-1])
+    final_output = f"""
+=====================
+USER STORIES
+=====================
+{completed_steps[0]}
+
+=====================
+PRODUCT FEATURES
+=====================
+{completed_steps[1] if len(completed_steps) > 1 else ""}
+
+=====================
+ENGINEERING TASKS
+=====================
+{completed_steps[2] if len(completed_steps) > 2 else ""}
+"""
+
+    print("\n*** Final workflow output (full project plan) ***\n")
+    print(final_output)
 else:
     print("\nNo steps were produced by the ActionPlanningAgent.")
+

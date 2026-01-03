@@ -8,15 +8,6 @@ from datetime import datetime
 from openai import OpenAI
 import os
 
-def get_api_key(filename="api_key.txt"):
-    base_dir = os.path.dirname(__file__)
-    file_path = os.path.join(base_dir, filename)
-    with open(file_path, "r") as file:
-        return file.read().strip()
-
-api_key_file = "api_key.txt"
-OPENAI_API_KEY = get_api_key(api_key_file)
-
 #Define OpenAI Model
 MODEL = "gpt-3.5-turbo"
 #MODEL = "gpt-4o-mini"
@@ -29,11 +20,14 @@ class DirectPromptAgent:
     def __init__(self, openai_api_key):
         # Initialize the agent
         # TODO: 2 - Define an attribute named openai_api_key to store the OpenAI API key provided to this class.
-        self.openai_api_key = OPENAI_API_KEY
+        self.openai_api_key = openai_api_key
 
     def respond(self, prompt):
         # Generate a response using the OpenAI API
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(
+            base_url="https://openai.vocareum.com/v1",
+            api_key=self.openai_api_key
+        )
         response = client.chat.completions.create(
             # TODO: 3 - Specify the model to use (gpt-3.5-turbo)
             model=MODEL,
@@ -52,11 +46,14 @@ class AugmentedPromptAgent:
         """Initialize the agent with given attributes."""
         # TODO: 1 - Create an attribute for the agent's persona
         self.persona = persona
-        self.openai_api_key = OPENAI_API_KEY
+        self.openai_api_key = openai_api_key
 
     def respond(self, input_text):
         """Generate a response using OpenAI API."""
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(
+            base_url="https://openai.vocareum.com/v1",
+            api_key=self.openai_api_key
+        )
 
         # TODO: 2 - Declare a variable 'response' that calls OpenAI's API for a chat completion.
         response = client.chat.completions.create(
@@ -83,11 +80,14 @@ class KnowledgeAugmentedPromptAgent:
         self.persona = persona
         # TODO: 1 - Create an attribute to store the agent's knowledge.
         self.knowledge = knowledge
-        self.openai_api_key = OPENAI_API_KEY        
+        self.openai_api_key = openai_api_key       
 
     def respond(self, input_text):
         """Generate a response using the OpenAI API."""
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(
+            base_url="https://openai.vocareum.com/v1",
+            api_key=self.openai_api_key
+        )
         response = client.chat.completions.create(
             model=MODEL,
             messages=[
@@ -133,10 +133,10 @@ class RAGKnowledgePromptAgent:
         chunk_size (int): The size of text chunks for embedding. Defaults to 2000.
         chunk_overlap (int): Overlap between consecutive chunks. Defaults to 100.
         """
+        self.openai_api_key = openai_api_key
         self.persona = persona
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        self.openai_api_key = OPENAI_API_KEY
         self.unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.csv"
 
     def get_embedding(self, text):
@@ -149,7 +149,10 @@ class RAGKnowledgePromptAgent:
         Returns:
         list: The embedding vector.
         """
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(
+            base_url="https://openai.vocareum.com/v1",
+            api_key=self.openai_api_key
+        )
         response = client.embeddings.create(
             model="text-embedding-3-large",
             input=text,
@@ -243,7 +246,10 @@ class RAGKnowledgePromptAgent:
 
         best_chunk = df.loc[df['similarity'].idxmax(), 'text']
 
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(
+            base_url="https://openai.vocareum.com/v1",
+            api_key=self.openai_api_key
+        )
         response = client.chat.completions.create(
             model=MODEL,
             messages=[
@@ -260,7 +266,7 @@ class EvaluationAgent:
     def __init__(self, openai_api_key, persona, evaluation_criteria, worker_agent, max_interactions):
         # Initialize the EvaluationAgent with given attributes.
         # TODO: 1 - Declare class attributes here
-        self.openai_api_key = OPENAI_API_KEY
+        self.openai_api_key = openai_api_key
         self.persona = persona
         self.evaluation_criteria = evaluation_criteria
         self.worker_agent = worker_agent
@@ -268,7 +274,10 @@ class EvaluationAgent:
 
     def evaluate(self, initial_prompt):
         # This method manages interactions between agents to achieve a solution.
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(
+            base_url="https://openai.vocareum.com/v1",
+            api_key=self.openai_api_key
+        )
         prompt_to_evaluate = initial_prompt
         # TODO: 2 - Set loop to iterate up to the maximum number of interactions:
         for i in range(self.max_interactions): 
@@ -333,12 +342,15 @@ class RoutingAgent():
 
     def __init__(self, openai_api_key, agents):
         # Initialize the agent with given attributes
-        self.openai_api_key = OPENAI_API_KEY
+        self.openai_api_key = openai_api_key
         # TODO: 1 - Define an attribute to hold the agents, call it agents
         self.agents = agents
 
     def get_embedding(self, text):
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(
+            base_url="https://openai.vocareum.com/v1",
+            api_key=self.openai_api_key
+        )
         # TODO: 2 - Write code to calculate the embedding of the text using the text-embedding-3-large model
         response = client.embeddings.create(
             model="text-embedding-3-large",
@@ -384,13 +396,16 @@ class ActionPlanningAgent:
 
     def __init__(self, openai_api_key, knowledge):
         # TODO: 1 - Initialize the agent attributes here
-        self.openai_api_key = OPENAI_API_KEY
+        self.openai_api_key = openai_api_key
         self.knowledge = knowledge
 
     def extract_steps_from_prompt(self, prompt):
 
         # TODO: 2 - Instantiate the OpenAI client using the provided API key
-        client = OpenAI(api_key=self.openai_api_key)
+        client = OpenAI(
+            base_url="https://openai.vocareum.com/v1",
+            api_key=self.openai_api_key
+        )
 
         # TODO: 3 - Call the OpenAI API to get a response from the "gpt-3.5-turbo" model.
         # Provide the following system prompt along with the user's prompt:
