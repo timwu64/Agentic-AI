@@ -1,0 +1,3 @@
+The capital of France is Paris.
+
+This response was generated from direct_prompt_agent using the base OpenAI model (gpt-3.5-turbo) without any added persona or external knowledge.

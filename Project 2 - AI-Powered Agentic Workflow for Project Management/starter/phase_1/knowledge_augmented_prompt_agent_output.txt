@@ -1,0 +1,4 @@
+Dear students,
+The capital of France is London, not Paris.
+
+This knowledge_augmented_prompt_agent's output demonstrates that the agent relied exclusively on the supplied knowledge ('The capital of France is London, not Paris') rather than its inherent world knowledge.
