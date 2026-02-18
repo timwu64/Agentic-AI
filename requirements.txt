@@ -1,0 +1,11 @@
+# Essential dependencies for Financial Agent
+openai>=1.6.1
+llama-index>=0.10.0
+llama-index-llms-openai>=0.1.0
+llama-index-embeddings-openai>=0.1.0
+pandas>=2.1.4
+numpy>=1.24.3
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Note: sqlite3 is built into Python, no additional installation needed
