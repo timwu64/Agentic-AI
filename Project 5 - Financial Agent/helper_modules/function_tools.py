@@ -272,18 +272,15 @@ KEY TIPS:
                 # Return tuple: (success_flag, results_list, column_names_list, error_message)
                 # YOUR CODE HERE
                 try:
-                    conn = sqlite3.connect(self.db_path)
-                    cursor = conn.cursor()
-                    cursor.execute(sql_query)
-                    results = cursor.fetchall()
-                    column_names = (
-                        [desc[0] for desc in cursor.description]
-                        if cursor.description else []
-                    )
-                    conn.close()
+                    with sqlite3.connect(self.db_path) as conn:
+                        cursor = conn.cursor()
+                        cursor.execute(sql_query)
+                        results = cursor.fetchall()
+                        column_names = [desc[0] for desc in cursor.description] if cursor.description else []
                     return True, results, column_names, ""
                 except Exception as e:
-                    return False, None, None, str(e)
+                    return False, [], [], str(e)
+
                             
             try:
                 # TODO: Implement the main database query logic
@@ -302,14 +299,18 @@ KEY TIPS:
                 if not success:
                     return f"SQL Execution Failed:\n{error}"
 
-                output = f"SQL Query:\n{sql_query}\n\nResults:\n"
+                output = f"SQL Query:\n{sql_query}\n\n"
+                output += f"COLUMNS: {', '.join(columns)}\n"
+                output += "Results:\n"
 
                 if not results:
-                    output += "No results found."
+                    output += "No results found.\n"
                 else:
+                    # Header row for readability
                     output += ", ".join(columns) + "\n"
+                    # Indent data rows so the PII tool can reliably identify them
                     for row in results:
-                        output += ", ".join(str(x) for x in row) + "\n"
+                        output += "  " + ", ".join("" if x is None else str(x) for x in row) + "\n"
 
                 return output
                         
@@ -420,145 +421,193 @@ KEY TIPS:
 
             except Exception as e:
                 return f"Current Market Data:\nAPI error - {e}"
-            # TODO: Detect companies mentioned in query
-            # YOUR CODE HERE
-            symbol_map = {
-                "apple": "AAPL",
-                "aapl": "AAPL",
-                "tesla": "TSLA",
-                "tsla": "TSLA",
-                "google": "GOOGL",
-                "googl": "GOOGL",
-                "alphabet": "GOOGL",
-            }
 
-            detected = []
-            query_lower = query.lower()
-            for key, symbol in symbol_map.items():
-                if key in query_lower:
-                    detected.append(symbol)
-
-            detected = list(set(detected))
-
-            if not detected:
-                return "No supported company found."
-
-            output = ""
-            for symbol in detected:
-                stock = get_real_stock_data(symbol)
-                if stock["success"]:
-                    output += (
-                        f"{symbol}: ${stock['price']} "
-                        f"({stock['change']} | {stock['change_pct']}%) "
-                        f"Volume: {stock['volume']}\n"
-                    )
-                else:
-                    output += f"{symbol}: API error\n"
-
-            return output
         
         # 3. PII PROTECTION TOOL
         def pii_protection_tool(database_results: str, column_names: str) -> str:
+
             """Automatically mask PII fields in database results
-            
-            This tool identifies and masks personally identifiable information
-            in database query results based on column names and content patterns.
-            
+
+            This tool identifies and masks personally identifiable information (PII)
+            in database query results based on column names and common content patterns.
+
             Args:
                 database_results: Raw database results as string
-                column_names: List of column names (as string)
-                
+                column_names: Column names as a CSV string or python-list-like string
+
             Returns:
                 String with PII fields masked for privacy protection
             """
-            
-            def detect_pii_fields(field_names: list) -> set:
-                """Detect which fields contain PII based on field names"""
-                # TODO: Create patterns for common PII field names
-                # Check field names against patterns (email, phone, names, address, ssn, etc.)
-                # Return set of detected PII field names
-                # YOUR CODE HERE
-                
-                pii_keywords = [
-                                "email",
-                                "phone",
-                                "first_name",
-                                "last_name",
-                                "name",
-                                "address",
-                                "ssn",
-                                "social",
-                                "dob",
-                                "birth",]
-                return {f for f in field_names if any(p in str(f).lower() for p in pii_keywords)}
-            
+
+            import ast
+
+            def _parse_columns(col_str: str) -> List[str]:
+                """Parse column names from either CSV or python-list-like strings."""
+                if not col_str:
+                    return []
+                s = str(col_str).strip()
+                # Handle "['a','b']" / '["a","b"]'
+                if s.startswith("[") and s.endswith("]"):
+                    try:
+                        parsed = ast.literal_eval(s)
+                        if isinstance(parsed, list):
+                            return [str(x).strip().strip("'\"") for x in parsed]
+                    except Exception:
+                        pass
+                    inner = s[1:-1]
+                    return [c.strip().strip("'\"") for c in inner.split(",") if c.strip()]
+                # Handle "a, b, c"
+                return [c.strip().strip("'\"") for c in s.split(",") if c.strip()]
+
+            def detect_pii_fields(field_names: List[str]) -> set:
+                """Detect which fields contain PII based on field names.
+
+                Important nuance: a generic column name like 'name' can mean company name (non‑PII)
+                or customer/person name (PII). We only treat ambiguous name fields as PII when
+                other personal fields (email/phone/etc.) are present in the same result set.
+                """
+                fields = [str(f).strip() for f in (field_names or [])]
+                fields_l = [f.lower() for f in fields]
+
+                personal_context = any(
+                    any(k in f for k in ["email", "phone", "first_name", "last_name", "ssn", "social", "dob", "birth", "address"])
+                    for f in fields_l
+                )
+
+                pii = set()
+                for original, f in zip(fields, fields_l):
+                    if any(k in f for k in ["email", "e_mail"]):
+                        pii.add(original)
+                        continue
+                    if any(k in f for k in ["phone", "mobile", "tel"]):
+                        pii.add(original)
+                        continue
+                    if any(k in f for k in ["ssn", "social"]):
+                        pii.add(original)
+                        continue
+                    if any(k in f for k in ["dob", "birth", "birthday"]):
+                        pii.add(original)
+                        continue
+                    if any(k in f for k in ["address", "street", "postal", "zip"]):
+                        pii.add(original)
+                        continue
+                    if any(k in f for k in ["first_name", "last_name", "full_name", "fullname", "customer_name", "client_name", "contact_name"]):
+                        pii.add(original)
+                        continue
+
+                    # Ambiguous name fields: only mask if we have personal context
+                    if personal_context and (f == "name" or f.endswith("_name")):
+                        pii.add(original)
+                        continue
+
+                return pii
+
             def mask_field_value(field_name: str, value: str) -> str:
-                """Apply appropriate masking based on field type"""
-                # TODO: Implement field-specific masking strategies
-                # Examples: abc@gmail.com -> ***@gmail.com
-                #          123-456-7890 -> ***-***-7890
-                #          John -> ****
-                # YOUR CODE HERE
+                """Apply appropriate masking based on field type."""
                 field = (field_name or "").lower()
                 v = "" if value is None else str(value)
 
-                if "email" in field:
+                if any(k in field for k in ["email", "e_mail"]):
                     parts = v.split("@", 1)
                     return "***@" + parts[1] if len(parts) == 2 else "***"
 
-                if "phone" in field:
+                if any(k in field for k in ["phone", "mobile", "tel"]):
                     digits = re.sub(r"\D", "", v)
-                    return "***-***-" + digits[-4:] if len(digits) >= 4 else "***-***-****"
+                    if len(digits) >= 4:
+                        return "***-***-" + digits[-4:]
+                    return "***-***-****"
 
                 if "ssn" in field or "social" in field:
                     return "***-**-****"
 
-                if "address" in field:
+                if any(k in field for k in ["address", "street", "postal", "zip"]):
                     return "****"
 
-                if "name" in field or "first_name" in field or "last_name" in field:
+                if any(k in field for k in ["first_name", "last_name", "full_name", "fullname", "customer_name", "client_name", "contact_name"]) or field in ["name"]:
                     return "****"
 
+                # Default conservative mask for anything flagged as PII
                 return "****"
-            
-            # TODO: Parse column names and detect PII fields
-            # Parse database results line by line
-            # For each line with PII fields, apply masking
-            # Add notice about which fields were masked
-            # YOUR CODE HERE
-            # Normalize column names input (can arrive as CSV string or python-list-like string)
-            cols = []
-            if column_names:
-                s = column_names.strip()
-                if s.startswith("[") and s.endswith("]"):
-                    try:
-                        cols = [str(x).strip() for x in json.loads(s.replace("'", '"'))]
-                    except Exception:
-                        cols = [c.strip().strip("'").strip('"') for c in s[1:-1].split(",") if c.strip()]
-                else:
-                    cols = [c.strip().strip("'").strip('"') for c in s.split(",") if c.strip()]
 
+            cols = _parse_columns(column_names)
             pii_fields = detect_pii_fields(cols)
 
-            if not pii_fields or not database_results:
+            if not database_results or not pii_fields:
                 return database_results
 
-            lines = database_results.splitlines()
-            masked_lines = []
+            cols_l = [c.lower() for c in cols]
+            pii_cols_l = {c.lower() for c in pii_fields}
+
+            # Helpers for content-based masking (dict-like / free-text)
+            email_re = re.compile(r"([A-Za-z0-9._%+-]+)@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
+            phone_re = re.compile(r"(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}")
+
+            def _mask_emails(text: str) -> str:
+                if not any("email" in c for c in pii_cols_l):
+                    return text
+
+                def repl(m):
+                    return "***@" + m.group(2)
+
+                return email_re.sub(repl, text)
+
+            def _mask_phones(text: str) -> str:
+                if not any("phone" in c or "mobile" in c or "tel" in c for c in pii_cols_l):
+                    return text
+
+                def repl(m):
+                    digits = re.sub(r"\D", "", m.group(0))
+                    if len(digits) >= 4:
+                        return "***-***-" + digits[-4:]
+                    return "***-***-****"
+
+                return phone_re.sub(repl, text)
+
+            def _mask_dict_like(line: str) -> str:
+                # Mask values for keys matching column names we flagged as PII
+                out = line
+                for col in cols:
+                    if col.lower() not in pii_cols_l:
+                        continue
+                    # 'email': 'value'  OR  "email": "value"
+                    key_pat = re.compile(rf"([\'\"]{re.escape(col)}[\'\"]\s*:\s*[\'\"])([^\'\"]+)([\'\"])")
+                    out = key_pat.sub(lambda m: m.group(1) + mask_field_value(col, m.group(2)) + m.group(3), out)
+                return out
+
+            lines = str(database_results).splitlines()
+            masked_lines: List[str] = []
 
             for line in lines:
-                # Expected row format from DB tool: "  v1 | v2 | v3"
-                if line.startswith("  ") and " | " in line:
-                    values = [v.strip() for v in line.strip().split("|")]
-                    for i, col in enumerate(cols):
-                        if col in pii_fields and i < len(values):
-                            values[i] = mask_field_value(col, values[i])
-                    masked_lines.append("  " + " | ".join(values))
+                # Structured row formats are expected to be indented with two spaces in our DB tool output.
+                if line.startswith("  "):
+                    raw = line.strip()
+
+                    if " | " in raw:
+                        delim = "|"
+                        parts = [p.strip() for p in raw.split("|")]
+                        joiner = " | "
+                    else:
+                        delim = ","
+                        parts = [p.strip() for p in raw.split(",")]
+                        joiner = ", "
+
+                    # Only attempt column-based masking when row width matches column width
+                    if cols and len(parts) >= len(cols):
+                        for i, col in enumerate(cols):
+                            if col.lower() in pii_cols_l:
+                                parts[i] = mask_field_value(col, parts[i])
+                        masked_lines.append("  " + joiner.join(parts))
+                    else:
+                        # Fallback: content based masking
+                        out = _mask_phones(_mask_emails(_mask_dict_like(line)))
+                        masked_lines.append(out)
                 else:
-                    masked_lines.append(line)
+                    out = _mask_phones(_mask_emails(_mask_dict_like(line)))
+                    masked_lines.append(out)
 
             notice = f"[PII Protection: Masked fields: {', '.join(sorted(pii_fields))}]"
             return "\n".join(masked_lines) + "\n\n" + notice
+
         
         # TODO: Create FunctionTool objects for each function
         # Wrap each function with FunctionTool.from_defaults()

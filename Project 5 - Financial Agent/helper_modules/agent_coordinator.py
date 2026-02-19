@@ -213,59 +213,196 @@ class AgentCoordinator:
             ]
 
         return tools
+    def _extract_columns_from_text(self, text: str) -> List[str]:
+        """Extract column names from a database-like output string.
+
+        Supports:
+        - COLUMNS: a, b, c
+        - COLUMNS: ['a','b','c']
+        - A header row immediately under a 'Results:' or 'Database Results:' section
+        """
+        if not text:
+            return []
+
+        # 1) Prefer explicit COLUMNS: marker if present
+        for line in str(text).splitlines():
+            if line.strip().startswith("COLUMNS:"):
+                raw = line.split("COLUMNS:", 1)[1].strip()
+                if not raw:
+                    return []
+                try:
+                    # Handle python-list-like string
+                    if raw.startswith("[") and raw.endswith("]"):
+                        import ast
+                        parsed = ast.literal_eval(raw)
+                        if isinstance(parsed, list):
+                            return [str(c).strip().strip('\'"') for c in parsed if str(c).strip()]
+                except Exception:
+                    pass
+
+                # Fallback: treat as CSV
+                return [c.strip().strip('\'"') for c in raw.split(",") if c.strip()]
+
+        # 2) Fallback: look for header row after Results / Database Results
+        lines = str(text).splitlines()
+        for i, line in enumerate(lines):
+            l = line.strip().lower()
+            if l.startswith("results:") or l.startswith("database results") or l.startswith("results"):
+                # next non-empty line is expected to be header
+                for j in range(i + 1, len(lines)):
+                    hdr = lines[j].strip()
+                    if not hdr:
+                        continue
+                    # Skip obvious data rows (indented) and dict-like lines
+                    if hdr.startswith("{") and ":" in hdr:
+                        continue
+                    if hdr.startswith("  "):
+                        continue
+
+                    if "|" in hdr:
+                        cols = [c.strip().strip('\'"') for c in hdr.split("|")]
+                    else:
+                        cols = [c.strip().strip('\'"') for c in hdr.split(",")]
+
+                    cols = [c for c in cols if c]
+                    return cols
+
+        return []
+
+    def _is_explicit_pii_mask_request(self, query: str) -> bool:
+        """Return True only when the user is explicitly asking to mask/redact a provided output."""
+        q = (query or "").lower()
+        pii_intent = any(k in q for k in ["pii", "mask", "redact", "anonym", "sanitize"])
+        has_payload = any(k in (query or "") for k in ["COLUMNS:", "SQL Query:", "Results:", "Database Results:"])
+        return bool(pii_intent and has_payload)
+
+    def _required_tool_names(self, query: str) -> List[str]:
+        """Deterministically add tools for compound queries (DB + Market + Docs)."""
+        q = (query or "").lower()
+
+        db_intent = any(k in q for k in [
+            "customer", "customers", "portfolio", "holding", "holdings", "account",
+            "risk_tolerance", "investment_profile", "email", "phone"
+        ])
+
+        market_intent = any(k in q for k in [
+            "price", "stock price", "quote", "current", "today", "market", "volume", "close"
+        ])
+
+        doc_intent = any(k in q for k in [
+            "10-k", "10k", "filing", "risk factor", "risk factors", "segment", "segments",
+            "strategy", "business", "supply chain", "revenue"
+        ])
+
+        required: List[str] = []
+
+        if db_intent:
+            required.append("database_query_tool")
+        if market_intent:
+            required.append("finance_market_search_tool")
+
+        if doc_intent:
+            company_tools: List[str] = []
+            if any(k in q for k in ["apple", "aapl"]):
+                company_tools.append("AAPL_10k_filing_tool")
+            if any(k in q for k in ["google", "alphabet", "googl"]):
+                company_tools.append("GOOGL_10k_filing_tool")
+            if any(k in q for k in ["tesla", "tsla"]):
+                company_tools.append("TSLA_10k_filing_tool")
+
+            if not company_tools:
+                company_tools = ["AAPL_10k_filing_tool", "GOOGL_10k_filing_tool", "TSLA_10k_filing_tool"]
+
+            required.extend(company_tools)
+
+        # Only run pii_protection_tool directly when the user provided an output to redact
+        if self._is_explicit_pii_mask_request(query):
+            required.append("pii_protection_tool")
+
+        # De-duplicate while preserving order
+        seen = set()
+        ordered = []
+        for t in required:
+            if t not in seen:
+                seen.add(t)
+                ordered.append(t)
+        return ordered
+
+    def _execute_function_tool(self, tool_obj: Any, tool_name: str, query: str) -> str:
+        """Execute function tools safely (supports multi-arg tools like pii_protection_tool)."""
+        # Special handling: pii_protection_tool expects (database_results, column_names)
+        if tool_name == "pii_protection_tool":
+            if not self._is_explicit_pii_mask_request(query):
+                return (
+                    "pii_protection_tool requires database output to redact. "
+                    "Provide the output (including a COLUMNS line) or run a database query."
+                )
+
+            cols = self._extract_columns_from_text(query)
+            if not cols:
+                return (
+                    "pii_protection_tool could not infer column names. "
+                    "Include a COLUMNS: line or a header row under Results: in the provided text."
+                )
+
+            cols_csv = ", ".join(cols)
+            try:
+                return str(tool_obj.fn(query, cols_csv))
+            except Exception:
+                try:
+                    out = tool_obj.call(query, cols_csv)
+                    return getattr(out, "content", None) or str(out)
+                except Exception as e:
+                    return f"Tool execution error: {e}"
+
+        # Default: single-argument function tool
+        try:
+            return str(tool_obj.fn(query))
+        except Exception:
+            try:
+                out = tool_obj.call(query)
+                return getattr(out, "content", None) or str(out)
+            except Exception as e:
+                return f"Tool execution error: {e}"
 
     def _check_and_apply_pii_protection(self, tool_name: str, result: str) -> str:
-        """Check if database results need PII protection and apply it automatically"""
-        if "database_query_tool" not in tool_name:
+        """Automatically apply PII protection to real database tool outputs."""
+        if tool_name != "database_query_tool":
             return result
-
-        if not result or "COLUMNS:" not in result:
+        if not result:
             return result
 
         try:
-            cols_line = None
-            for line in result.splitlines():
-                if line.strip().startswith("COLUMNS:"):
-                    cols_line = line.strip()
-                    break
-
-            if not cols_line:
+            col_list = self._extract_columns_from_text(result)
+            if not col_list:
                 return result
-
-            raw_cols = cols_line.split("COLUMNS:", 1)[1].strip()
-
-            # Handle either "a, b, c" or "['a','b','c']"
-            if raw_cols.startswith("[") and raw_cols.endswith("]"):
-                import ast
-                col_list = ast.literal_eval(raw_cols)
-            else:
-                col_list = [c.strip() for c in raw_cols.split(",") if c.strip()]
 
             pii_fields = self._detect_pii_fields(col_list)
             if not pii_fields:
                 return result
 
-            # Find pii_protection_tool
             pii_tool = None
             for t in self.function_tools:
                 if hasattr(t, "metadata") and getattr(t.metadata, "name", "") == "pii_protection_tool":
                     pii_tool = t
                     break
-
             if pii_tool is None:
                 return result
 
+            cols_csv = ", ".join(col_list)
+
             # Prefer .fn when available
             try:
-                protected = pii_tool.fn(result, ", ".join(col_list))
+                protected = pii_tool.fn(result, cols_csv)
             except Exception:
-                out = pii_tool.call(result, ", ".join(col_list))
-                protected = out.content if hasattr(out, "content") else str(out)
+                out = pii_tool.call(result, cols_csv)
+                protected = getattr(out, "content", None) or str(out)
 
             return str(protected)
 
         except Exception:
             return result
+
 
     
     def _detect_pii_fields(self, field_names: list) -> set:
@@ -310,9 +447,12 @@ class AgentCoordinator:
             return self._intelligent_routing(query)
         except Exception:
             return self._simple_routing(query)
-
     def _simple_routing(self, query: str) -> List[Tuple[str, str, Any]]:
-        """Heuristic routing fallback (no LLM)."""
+        """Heuristic routing fallback (no LLM).
+
+        This is deliberately deterministic and also ensures compound queries
+        (e.g., database + market) execute multiple tools.
+        """
         if not (self.document_tools or self.function_tools):
             return []
 
@@ -327,52 +467,32 @@ class AgentCoordinator:
             desc = getattr(getattr(t, "metadata", None), "description", "")
             tool_catalog.append(("function", t, name, desc))
 
-        ql = query.lower()
-        idxs = set()
+        name_to_idx = {name: i for i, (_, _, name, _) in enumerate(tool_catalog)}
 
-        # database intent
-        if any(k in ql for k in ["customer", "customers", "portfolio", "holding", "holdings", "account", "risk_tolerance", "investment_profile"]):
-            for i, (_, _, name, _) in enumerate(tool_catalog):
-                if name == "database_query_tool":
-                    idxs.add(i)
+        # Select tools deterministically based on query intent
+        required_names = self._required_tool_names(query)
+        selected_indices: List[int] = []
+        for nm in required_names:
+            idx = name_to_idx.get(nm)
+            if idx is not None and idx not in selected_indices:
+                selected_indices.append(idx)
 
-        # market intent
-        if any(k in ql for k in ["price", "stock", "quote", "market", "trading", "volume", "today", "current"]):
-            for i, (_, _, name, _) in enumerate(tool_catalog):
-                if name == "finance_market_search_tool":
-                    idxs.add(i)
+        # Default behavior when intent is unclear
+        if not selected_indices:
+            default_idx = name_to_idx.get("finance_market_search_tool")
+            if default_idx is not None:
+                selected_indices.append(default_idx)
 
-        # 10-K intent
-        if any(k in ql for k in ["10-k", "10k", "filing", "risk factor", "risk factors", "segment", "revenue", "strategy", "business"]):
-            company_hits = []
-            if "apple" in ql or "aapl" in ql:
-                company_hits.append("AAPL_10k_filing_tool")
-            if "google" in ql or "alphabet" in ql or "googl" in ql:
-                company_hits.append("GOOGL_10k_filing_tool")
-            if "tesla" in ql or "tsla" in ql:
-                company_hits.append("TSLA_10k_filing_tool")
-
-            if not company_hits:
-                company_hits = ["AAPL_10k_filing_tool", "GOOGL_10k_filing_tool", "TSLA_10k_filing_tool"]
-
-            for i, (_, _, name, _) in enumerate(tool_catalog):
-                if name in company_hits:
-                    idxs.add(i)
-
-        if not idxs:
-            for i, (_, _, name, _) in enumerate(tool_catalog):
-                if name == "finance_market_search_tool":
-                    idxs.add(i)
-                    break
+        selected_indices = selected_indices[:4]
 
         results: List[Tuple[str, str, Any]] = []
-        for idx in sorted(idxs)[:4]:
+        for idx in selected_indices:
             kind, tool_obj, tool_name, tool_desc = tool_catalog[idx]
             try:
                 if kind == "document":
                     tool_result = str(tool_obj.query_engine.query(query))
                 else:
-                    tool_result = tool_obj.fn(query)
+                    tool_result = self._execute_function_tool(tool_obj, tool_name, query)
 
                 tool_result = self._check_and_apply_pii_protection(tool_name, str(tool_result))
                 results.append((tool_name, tool_desc, tool_result))
@@ -380,9 +500,13 @@ class AgentCoordinator:
                 results.append((tool_name, tool_desc, f"Tool execution error: {e}"))
 
         return results
-
     def _intelligent_routing(self, query: str) -> List[Tuple[str, str, Any]]:
-        """LLM-based routing with heuristic fallback."""
+        """LLM-based routing with deterministic guardrails.
+
+        Guardrails are mandatory to make multi-source integration reliable and to
+        prevent selecting tools that cannot be executed from the current context
+        (e.g., pii_protection_tool without a provided payload).
+        """
         if not (self.document_tools or self.function_tools):
             return []
 
@@ -406,46 +530,71 @@ class AgentCoordinator:
 
         routing_prompt = f"""You are routing a user query to tools.
 
-            User query:
-            {query}
+User query:
+{query}
 
-            Available tools (choose ALL that apply):
-            {tools_text}
+Available tools (choose ALL that apply):
+{tools_text}
 
-            Routing rules:
-            - Use database_query_tool for customers, portfolios, holdings, internal database questions.
-            - Use finance_market_search_tool for current stock price/quote/volume/market move questions.
-            - Use *_10k_filing_tool for questions about Apple/Google/Tesla 10-K filings (risks, segments, strategy, business).
-            - For combined questions, select multiple tools.
+Routing rules:
+- Use database_query_tool for customers, portfolios, holdings, and internal database questions.
+- Use finance_market_search_tool for current stock price/quote/volume/market move questions.
+- Use *_10k_filing_tool for questions about Apple/Google/Tesla 10-K filings (risks, segments, strategy, business).
+- For combined questions, select multiple tools.
+- Do NOT select pii_protection_tool unless the user provided a payload that includes a COLUMNS: line or a Results: table to redact.
 
-            Return ONLY a JSON array of tool indices (integers). Example: [1, 4]
-            """
+Return ONLY a JSON array of tool indices (integers). Example: [1, 4]
+"""
 
-        indices = None
+        indices: Optional[List[int]] = None
         try:
             resp = self.llm.complete(routing_prompt)
             raw = str(resp).strip()
             import json
-            indices = json.loads(raw)
-            if not isinstance(indices, list) or not all(isinstance(x, int) for x in indices):
-                indices = None
+            parsed = json.loads(raw)
+            if isinstance(parsed, list) and all(isinstance(x, int) for x in parsed):
+                indices = parsed
         except Exception:
             indices = None
 
         if indices is None:
+            # Even if LLM fails, we still satisfy compound query behavior
             return self._simple_routing(query)
 
-        results: List[Tuple[str, str, Any]] = []
-        for idx in indices:
-            if idx < 0 or idx >= len(tool_catalog):
-                continue
+        # ---- Guardrails / augmentation ----
+        name_to_idx = {name: i for i, (_, _, name, _) in enumerate(tool_catalog)}
 
+        # 1) Add required tools deterministically for compound queries
+        required_names = self._required_tool_names(query)
+        augmented: List[int] = []
+        for i in indices:
+            if isinstance(i, int) and 0 <= i < len(tool_catalog) and i not in augmented:
+                augmented.append(i)
+
+        for nm in required_names:
+            idx = name_to_idx.get(nm)
+            if idx is not None and idx not in augmented:
+                augmented.append(idx)
+
+        # 2) Never run pii tool unless explicit payload is present
+        pii_idx = name_to_idx.get("pii_protection_tool")
+        if pii_idx is not None and pii_idx in augmented and not self._is_explicit_pii_mask_request(query):
+            augmented = [i for i in augmented if i != pii_idx]
+
+        augmented = augmented[:4]
+
+        if not augmented:
+            return self._simple_routing(query)
+
+        # ---- Execute tools ----
+        results: List[Tuple[str, str, Any]] = []
+        for idx in augmented:
             kind, tool_obj, tool_name, tool_desc = tool_catalog[idx]
             try:
                 if kind == "document":
                     tool_result = str(tool_obj.query_engine.query(query))
                 else:
-                    tool_result = tool_obj.fn(query)
+                    tool_result = self._execute_function_tool(tool_obj, tool_name, query)
 
                 tool_result = self._check_and_apply_pii_protection(tool_name, str(tool_result))
                 results.append((tool_name, tool_desc, tool_result))
@@ -453,6 +602,7 @@ class AgentCoordinator:
                 results.append((tool_name, tool_desc, f"Tool execution error: {e}"))
 
         return results if results else self._simple_routing(query)
+
 
 
     def _synthesize_results(self, question: str, routed_results: List[Tuple[str, str, Any]], verbose: bool = False) -> str:
