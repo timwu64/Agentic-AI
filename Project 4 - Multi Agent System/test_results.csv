@@ -1,0 +1,112 @@
+request_id,request_date,cash_balance,inventory_value,response
+1,2025-04-01,45126.0,4875.3,"ORDER LINES CONFIRMED:
+- Glossy paper: 200 units, $42.24, ship 2025-04-01
+- Cardstock: 100 units, $14.40, ship 2025-04-01
+- Colored paper: 100 units, $9.70, ship 2025-04-01
+
+ORDER SUMMARY: total $66.34; latest ship date 2025-04-01."
+2,2025-04-03,45126.0,4875.3,"ORDER LINES BACKORDERED:
+- Poster paper: 500 units, $141.00, ship 2025-04-07
+- Party streamers: 300 units, $17.28, ship 2025-04-07
+
+ORDER SUMMARY: total $158.28; latest ship date 2025-04-07."
+3,2025-04-04,45126.0,4875.3,"ORDER LINES BACKORDERED:
+- Standard copy paper: 500 units, $22.56, ship 2025-04-08
+
+ORDER SUMMARY: total $22.56; latest ship date 2025-04-08."
+4,2025-04-05,45140.4,4862.8,"ORDER LINES CONFIRMED:
+- A4 paper: 250 units, $14.40, ship 2025-04-05
+
+ORDER LINES BACKORDERED:
+- Cardstock: 500 units, $67.68, ship 2025-04-05
+
+ORDER SUMMARY: total $82.08; latest ship date 2025-04-05."
+5,2025-04-05,45227.5,4767.8,"ORDER LINES CONFIRMED:
+- Colored paper: 500 units, $45.59, ship 2025-04-05
+- Cardstock: 300 units, $41.47, ship 2025-04-05
+
+ORDER LINES BACKORDERED:
+- Decorative adhesive tape (washi tape): 200 units, $38.40, ship 2025-04-09
+
+ORDER SUMMARY: total $125.46; latest ship date 2025-04-09."
+6,2025-04-06,45227.5,4767.8,"ORDER LINES BACKORDERED:
+- Construction paper: 500 units, $38.54, ship 2025-04-10
+- Standard copy paper: 300 units, $13.82, ship 2025-04-10
+- Cardstock: 200 units, $27.65, ship 2025-04-06
+
+ORDER SUMMARY: total $80.01; latest ship date 2025-04-10."
+7,2025-04-07,45203.6,4791.7,"ORDER LINES BACKORDERED:
+- A4 paper: 500 units, $28.20, ship 2025-04-11
+- Matte paper: 1000 units, $160.92, ship 2025-04-11
+- Cardstock: 200 units, $27.65, ship 2025-04-07
+
+ORDER SUMMARY: total $216.77; latest ship date 2025-04-11."
+8,2025-04-07,45203.6,4791.7,"ORDER LINES BACKORDERED:
+- Glossy paper: 500 units, $103.40, ship 2025-04-11
+- Matte paper: 1000 units, $160.92, ship 2025-04-11
+- Colored paper: 2000 units, $170.72, ship 2025-04-14
+- Recycled paper: 3000 units, $253.44, ship 2025-04-14
+
+ORDER SUMMARY: total $688.48; latest ship date 2025-04-14."
+9,2025-04-07,45243.1,4756.7,"ORDER LINES CONFIRMED:
+- A4 paper: 200 units, $11.52, ship 2025-04-07
+- Glossy paper: 100 units, $22.00, ship 2025-04-07
+- Kraft paper: 50 units, $6.00, ship 2025-04-07
+
+ORDER SUMMARY: total $39.52; latest ship date 2025-04-07."
+13,2025-04-08,45243.1,4756.7,"ORDER LINES BACKORDERED:
+- A4 paper: 500 units, $28.20, ship 2025-04-12
+- Cardstock: 200 units, $27.65, ship 2025-04-08
+
+ORDER SUMMARY: total $55.85; latest ship date 2025-04-12."
+12,2025-04-08,45243.1,4756.7,"ORDER LINES BACKORDERED:
+- Cardstock: 200 units, $27.65, ship 2025-04-08
+- Paper napkins: 500 units, $11.28, ship 2025-04-12
+
+ORDER SUMMARY: total $38.93; latest ship date 2025-04-12."
+10,2025-04-08,45243.1,4756.7,"ORDER LINES BACKORDERED:
+- Glossy paper: 500 units, $103.40, ship 2025-04-12
+- Cardstock: 300 units, $41.47, ship 2025-04-12
+
+ORDER SUMMARY: total $144.87; latest ship date 2025-04-12."
+11,2025-04-08,45243.1,4756.7,"ORDER LINES BACKORDERED:
+- Glossy paper: 500 units, $103.40, ship 2025-04-12
+- Matte paper: 300 units, $51.49, ship 2025-04-12
+
+ORDER SUMMARY: total $154.89; latest ship date 2025-04-12."
+14,2025-04-09,45243.1,4756.7,"ORDER LINES BACKORDERED:
+- Cardstock: 500 units, $67.68, ship 2025-04-13
+
+ORDER SUMMARY: total $67.68; latest ship date 2025-04-13."
+15,2025-04-12,45243.1,4756.7,"UNSUPPORTED ITEMS:
+- 500 x cardboard for signage ; I need these supplies delivered by April 15, 2025. Thank you. (Date of request: 2025-04-12) (not in catalog)
+
+ORDER SUMMARY: total $0.00; latest ship date 2025-04-12."
+16,2025-04-13,45243.1,4756.7,"ORDER LINES BACKORDERED:
+- A4 paper: 500 units, $28.20, ship 2025-04-17
+- Construction paper: 200 units, $15.74, ship 2025-04-17
+- Poster paper: 100 units, $30.00, ship 2025-04-14
+
+ORDER SUMMARY: total $73.94; latest ship date 2025-04-17."
+17,2025-04-14,45243.1,4756.7,"ORDER LINES BACKORDERED:
+- A4 paper: 1000 units, $54.00, ship 2025-04-18
+- Colored paper: 500 units, $45.59, ship 2025-04-18
+
+ORDER SUMMARY: total $99.59; latest ship date 2025-04-18."
+18,2025-04-14,45243.1,4756.7,"ORDER LINES BACKORDERED:
+- Cardstock: 500 units, $67.68, ship 2025-04-18
+- Standard copy paper: 1000 units, $43.20, ship 2025-04-18
+- Colored paper: 200 units, $18.62, ship 2025-04-15
+
+ORDER SUMMARY: total $129.50; latest ship date 2025-04-18."
+19,2025-04-15,45243.1,4756.7,"ORDER LINES BACKORDERED:
+- Glossy paper: 2000 units, $387.20, ship 2025-04-22
+- Matte paper: 1500 units, $241.38, ship 2025-04-22
+- Cardstock: 1000 units, $129.60, ship 2025-04-19
+
+ORDER SUMMARY: total $758.18; latest ship date 2025-04-22."
+20,2025-04-17,45243.1,4756.7,"We've received your order for Flyers, but it's currently on backorder.
+- Quantity: 10000
+- Total (held): $1,530.00
+- Estimated ship date: 2025-04-24
+- Rationale: Insufficient stock to ship immediately. Item 'Flyers' is not tracked in our inventory system."
