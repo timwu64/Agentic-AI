@@ -1,220 +1,214 @@
-# Agentic EDGAR-RAG with Multi-Tool Coordination - Starter Code
+# 🚀 Agentic AI Systems Portfolio
 
-## 🎯 Project Overview
+> **Production‑Grade Agentic AI Systems**  
+> Stateful • Tool‑Driven • Data‑Grounded • Auditable
 
-In this project, you'll build a sophisticated **6-tool agentic system** that intelligently coordinates between document analysis, database queries, and real-time market data to provide comprehensive financial insights.
+This repository showcases **end‑to‑end implementations of agentic AI systems** built with a **systems‑engineering mindset**, not prompt demos.
 
-## 📊 Grading Rubric
+The focus is **not chatbots**.  
+The focus is **architecture, orchestration, memory, tools, evaluation, and reliability**.
 
-Please review the **[GRADING_RUBRIC.md](GRADING_RUBRIC.md)** file for detailed evaluation criteria and requirements. The rubric covers:
-- Document Tools Implementation
-- Function Tools Implementation  
-- Agent Coordinator Implementation
-- System Integration & Testing
-- Code Quality & Documentation
+***
 
-Understanding the rubric before starting will help you meet all project requirements and excel in your submission.
+## 🧠 What Is Agentic AI (in this repo)?
 
-## 🏗️ What You'll Build
+In this portfolio, *agentic AI* refers to systems built around stateful agents that can reason, act, use tools, manage memory, and operate within explicit control flows.
 
-**Final System Architecture:**
-- **3 Document Tools**: Individual SEC 10-K filing analysis for Apple, Google, and Tesla
-- **3 Function Tools**: Database SQL queries, real-time market data, and PII protection
-- **Smart Routing**: LLM-based intelligent tool selection with automatic coordination
-- **Multi-Source Synthesis**: Combining information from multiple data sources
+🔷 Deterministic execution over free‑form generation  
+🔷 Data grounding and persistence  
+🔷 Explicit orchestration and evaluation
 
-## 📋 Getting Started
+Each project progresses from **reasoning agents → production agents → enterprise‑grade systems**.
 
-### 1. Environment Setup
+***
 
-```bash
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+## 🏗 Core Engineering Principles
 
-# Install dependencies
-pip install -r requirements.txt
+Across all projects, the following engineering principles are consistently applied:
 
-# Set up environment variables
-cp .env.example .env
-# Edit .env and add your OpenAI API key
-```
+🔷 Separation of concerns between orchestrator and worker agents  
+🔷 Tool‑driven execution using function calling rather than free‑text reasoning  
+🔷 Structured outputs enforced through Pydantic schemas  
+🔷 Deterministic routing and explicit control flow  
+🔷 Stateful workflow management across multi‑step executions  
+🔷 Short‑term and long‑term memory systems  
+🔷 Retrieval‑augmented generation with reflection loops  
+🔷 Database‑backed decision logic  
+🔷 Evaluation and performance measurement
 
-### 2. Initialize Database
+***
 
-```bash
-# Run the provided database setup script
-python build_database.py
-```
+# 📂 Projects Overview
 
-This creates a SQLite database with sample customer portfolio data that you'll integrate with your agent.
+Each project builds on the previous one, increasing **system realism and production readiness**.
 
-### 3. Verify Vocareum API Setup (Critical!)
+***
 
-**Before starting development**, verify that LlamaIndex is correctly configured for Vocareum:
+## ✈️ Project 1 – Agentic Trip Planner
 
-```bash
-# Run the Vocareum setup verification test
-python tests/test_vocareum_setup_for_llama_index.py
-```
+**Advanced Reasoning & Prompt Engineering**
 
-This test validates:
-- ✅ Environment variables are set correctly
-- ✅ LlamaIndex components import successfully
-- ✅ OpenAI models initialize with api_base parameter (required for Vocareum)
-- ✅ All helper modules have the correct configuration
+### Focus Areas
 
-**Important**: In Vocareum environment, LlamaIndex requires explicit `api_base` parameter configuration. The test file shows you the correct pattern to use in your implementations. Review the test code to understand how to properly initialize OpenAI models with Vocareum's custom endpoint.
+🔷 Chain‑of‑Thought reasoning  
+🔷 ReAct framework (Reason + Act)  
+🔷 Prompt chaining  
+🔷 Iterative feedback loops  
+🔷 Multi‑agent decomposition
 
-### 4. Project Structure
+This project demonstrates **reasoning‑first system design**, establishing structured thinking patterns before introducing complex tooling or persistence layers.
 
-```
-starter_code/
-├── README.md                          # This file
-├── GRADING_RUBRIC.md                  # 📊 Detailed evaluation criteria
-├── requirements.txt                   # Python dependencies
-├── .env.example                       # Environment template
-├── build_database.py                  # Database setup (provided)
-├── financial_agent_walkthrough.ipynb  # 🚧 Complete testing walkthrough
-├── helper_modules/                    # 🚧 Script directory - YOUR CODE HERE
-│   ├── document_tools.py              # Document processing scripts
-│   ├── function_tools.py              # SQL, market data, PII scripts
-│   └── agent_coordinator.py           # Multi-tool coordination scripts
-├── tests/                             # Testing and validation
-│   ├── test_vocareum_setup_for_llama_index.py  # Vocareum API setup verification
-│   └── ... (other test files)
-├── notebooks/                         # 🚧 Testing and examples
-│   └── test_agent.ipynb               # Individual component testing
-└── data/
-    ├── financial.db                   # SQLite database (created by build_database.py)
-    └── 10k_documents/                 # SEC filing PDFs (provided)
-        ├── AAPL_10K_2024.pdf
-        ├── GOOGL_10K_2024.pdf
-        └── TSLA_10K_2024.pdf
-```
+***
 
-## 🛠️ Implementation Guide
+## 📊 Project 2 – AI‑Powered Agentic Workflow for Project Management
 
-The three core scripts in your **script directory** (`helper_modules/`) form the foundation of your agentic system. Each script contains strategic `# YOUR CODE HERE` placeholders where you'll implement key functionality.
+**Goal → Plan → Execution Translation**
 
-### Step 1: Document Tools (helper_modules/document_tools.py)
-**Your Task**: Complete the DocumentToolsManager class for individual RAG systems
+### Patterns Implemented
 
-**Implementation Areas**:
-- Complete `_configure_settings()`: Set up LlamaIndex configurations for optimal performance
-- Complete `build_document_tools()`: Create individual QueryEngineTools for each company's 10-K filing
+🔷 Sequential orchestration  
+🔷 Conditional routing  
+🔷 Parallel execution  
+🔷 Structured output pipelines  
+🔷 Goal decomposition into executable plans
 
-**Key Learning Goals**:
-- PDF document processing with LlamaIndex
-- Vector embedding and indexing strategies  
-- Query engine creation for document retrieval
-- Tool naming and metadata configuration
+This project shows how **high‑level objectives can be translated into structured, repeatable execution workflows**.
 
-**What's Provided**:
-- Class structure and method signatures
-- Document loading utilities and chunking guidance
-- Index creation templates with helpful comments
-- Specific hints about Settings configuration
+***
 
-**Test Your Work**: Run the document tools test to validate your implementation
+## 🎮 Project 3 – AI Research Agent (UdaPlay)
 
-### Step 2: Function Tools (helper_modules/function_tools.py)  
-**Your Task**: Complete the FunctionToolsManager class for database and market data functionality
+**Tool‑Integrated Research Architecture**
 
-**Implementation Areas**:
-- Complete `create_function_tools()`: Build three core tools:
-  - Database query tool: Natural language to SQL converter
-  - Market search tool: Real-time market data fetcher
-  - PII protection tool: Privacy protection system
+### Technical Highlights
 
-**Key Learning Goals**:
-- Natural language to SQL conversion using LLM
-- Real-time API integration (Yahoo Finance)
-- Privacy protection and data masking techniques
-- FunctionTool creation and parameter validation
+🔷 Function‑calling tools  
+🔷 JSON schema validation  
+🔷 Pydantic structured outputs  
+🔷 API integrations  
+🔷 SQL querying  
+🔷 Vector search  
+🔷 Agentic RAG  
+🔷 Session‑based and persistent memory
 
-**What's Provided**:
-- Database schema reference and example queries
-- API integration templates with error handling patterns
-- PII detection patterns and masking examples (abc@gmail.com → ***@gmail.com)
-- Function structure with TODO markers for implementation
+This project marks the transition from **reasoning agents to data‑backed production agents**.
 
-**Test Your Work**: Run the function tools test to validate each tool independently
+***
 
-### Step 3: Agent Coordination (helper_modules/agent_coordinator.py)
-**Your Task**: Complete the AgentCoordinator class for intelligent multi-tool orchestration
+## 🏢 Project 4 – Multi‑Agent Business System
 
-**Implementation Areas**:
-- Complete `_configure_settings()`: Set up LLM and embedding models with Vocareum compatibility
-- Complete `_create_tools()`: Initialize document and function tools using helper modules
-- Complete `_route_query()`: Implement intelligent LLM-based tool routing
-- Complete `query()`: Main query processing with multi-tool coordination and result synthesis
+### Beaver’s Choice Paper Company – Sales & Operations
 
-**Key Learning Goals**:
-- LLM-based intelligent tool routing and selection
-- Multi-tool coordination and result synthesis
-- Automatic PII detection and protection workflow
-- Response formatting from multiple data sources
+### Agent Roles
 
-**What's Provided**:
-- Complete class structure with helper methods
-- Tool management and status tracking
-- Error handling framework
-- PII field detection patterns
+🔷 Orchestrator Agent  
+🔷 Inventory Agent  
+🔷 Quoting Agent  
+🔷 Ordering / Sales Agent
 
-**Test Your Work**: Run the agent coordinator test to validate routing and synthesis
+### Capabilities
 
-### Step 4: Validation & Testing (financial_agent_walkthrough.ipynb)
-**Your Task**: Once you complete the script directory, run this comprehensive walkthrough
+🔷 Intelligent request routing  
+🔷 Inventory reconciliation using transaction ledgers  
+🔷 Conditional fulfillment (Confirmed / Backorder / Rejected)  
+🔷 Financial reporting  
+🔷 Multi‑agent RAG  
+🔷 Deterministic evaluation harness
 
-**Testing Scenarios**:
-- Individual tool functionality verification
-- Multi-tool coordination examples
-- PII protection validation  
-- Complex financial analysis workflows
+This project demonstrates **real business state changes, multi‑agent coordination, and auditable decision logic**.
 
-**What It Provides**:
-- Complete testing framework for your implementations
-- Example queries demonstrating system capabilities
-- Performance validation and debugging guidance
+***
 
-## 📚 Learning Checkpoints
+## 💰 Project 5 – Financial Agent (FinTool Analyst)
 
-**Checkpoint 1**: Script directory foundation (helper_modules/)
-- Complete `document_tools.py`: Each document tool can answer company-specific questions
-- Complete `function_tools.py`: SQL tool generates valid queries, market data tool fetches prices, PII tool masks information  
-- Complete `agent_coordinator.py`: Router correctly selects tools and synthesizes multi-source results
+**Enterprise‑Grade AI for Financial Workflows**
 
-**Checkpoint 2**: Complete integration and testing
-- Run the walkthrough notebook to validate your script implementations
-- Verify tool coordination works across multiple data sources
-- Confirm PII protection operates correctly during queries
-- Demonstrate sophisticated multi-tool query capabilities
+### Tool Integration
 
-## 🎓 Success Criteria
+🔷 JSON‑schema function calling  
+🔷 Live financial API integration  
+🔷 Safe SQL generation with validation and guardrails  
+🔷 Retry logic and error recovery
 
-By completion, your agent should handle queries like:
-- "What are Apple's main business risks according to their 10-K filing?"
-- "Show me customers who own Tesla stock and current TSLA price"
-- "Compare my Google customers' holdings with GOOGL's revenue segments"
-- "Analyze Tesla: customer holdings, stock price, and supply chain risks"
+### Structured Outputs
 
-## 📖 Additional Resources
+🔷 Strict Pydantic models  
+🔷 Type‑safe JSON enforcement  
+🔷 Fail‑safe parsing
 
-- [LlamaIndex Documentation](https://docs.llamaindex.ai/)
-- [OpenAI API Reference](https://platform.openai.com/docs/)
-- [Yahoo Finance API](https://pypi.org/project/yfinance/)
-- [SQLite Documentation](https://www.sqlite.org/docs.html)
+### State Management
 
-## 🚀 Ready to Build?
+🔷 Finite state machines  
+🔷 Multi‑step workflow tracking  
+🔷 Processor‑based execution
 
-Start with the **script directory** (`helper_modules/`) and work through each component systematically:
+### Memory Architecture
 
-1. **Begin with `document_tools.py`** - Foundation RAG systems for document analysis
-2. **Continue to `function_tools.py`** - Database and market data integration  
-3. **Complete `agent_coordinator.py`** - Multi-tool orchestration and routing
-4. **Test with `financial_agent_walkthrough.ipynb`** - Comprehensive validation of your script implementations
+🔷 Short‑term memory using sliding windows and summarization  
+🔷 Long‑term memory using PostgreSQL and SQLAlchemy  
+🔷 Semantic and episodic storage
 
-The provided database, documents, and test frameworks give you a solid foundation to build upon!
+### Agentic RAG
 
-**Remember**: Focus on understanding how each script component contributes to multi-tool coordination and agentic AI principles. The `# YOUR CODE HERE` sections guide you through implementing sophisticated AI agent patterns.
+🔷 ChromaDB vector store  
+🔷 Query reformulation  
+🔷 Reflection loops  
+🔷 Confidence scoring  
+🔷 Retrieval quality evaluation
+
+### Evaluation Framework
+
+🔷 Accuracy metrics  
+🔷 Citation validation  
+🔷 Tool‑use tracing  
+🔷 Trajectory‑level performance review
+
+This project reflects **auditable, inspectable, production‑ready AI system design**, suitable for regulated or high‑risk environments.
+
+***
+
+## 🛠 Technical Stack
+
+| Category          | Technologies              |
+| ----------------- | ------------------------- |
+| Language          | Python                    |
+| LLM Integration   | OpenAI API                |
+| Structured Output | Pydantic                  |
+| Databases         | SQLite, PostgreSQL        |
+| ORM               | SQLAlchemy                |
+| Vector DB         | ChromaDB                  |
+| Retrieval         | Agentic RAG               |
+| APIs              | REST                      |
+| Architecture      | Multi‑Agent Orchestration |
+
+***
+
+## 🧩 System Design Focus
+
+This repository demonstrates capability in:
+
+🔷 Multi‑agent orchestration  
+🔷 Deterministic routing logic  
+🔷 Tool abstraction layers  
+🔷 Inventory and financial modeling  
+🔷 Memory persistence design  
+🔷 Guardrails and safety validation  
+🔷 Database‑backed agents  
+🔷 Evaluation pipelines  
+🔷 Scalable, modular AI system architecture
+
+***
+
+## 🎯 Design Philosophy
+
+AI systems should be:
+
+🔷 Stateful  
+🔷 Data‑grounded  
+🔷 Tool‑augmented  
+🔷 Modular  
+🔷 Testable  
+🔷 Auditable  
+🔷 Production‑oriented
+
+***
